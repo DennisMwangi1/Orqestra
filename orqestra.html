@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orqestra Suite — Event orchestration infrastructure</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cream-0: #FDFAF4;
+      --cream-1: #F7F2E8;
+      --cream-2: #EDE8DC;
+      --cream-3: #D8D2C4;
+      --ink: #1C1A16;
+      --ink-2: #4A4740;
+      --ink-3: #7A776E;
+      --teal: #1D9E75;
+      --teal-light: #E1F5EE;
+      --teal-mid: #5DCAA5;
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --font: 'Inter', system-ui, -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--cream-0);
+      font-family: var(--font);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* NAV */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 22px 56px;
+      pointer-events: none;
+    }
+    .nav-logo {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--ink);
+      letter-spacing: -0.3px;
+    }
+    .nav-logo span { color: var(--teal); }
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .nav-tag {
+      font-size: 12px;
+      color: var(--ink-3);
+      border: 0.5px solid var(--cream-3);
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: var(--cream-1);
+    }
+
+    /* LAYOUT */
+    .layout {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      grid-template-columns: 1fr 1px 1fr;
+    }
+
+    .divider { background: var(--cream-3); }
+
+    .panel {
+      position: relative;
+      overflow: hidden;
+      height: 100vh;
+    }
+    #panel-right { background: var(--cream-1); }
+
+    .strip {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      will-change: transform;
+    }
+
+    /* SECTIONS — each exactly 100vh */
+    .sec {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 100px 64px 80px 56px;
+    }
+    .sec-r {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: stretch;
+      padding: 76px 28px 76px 20px;
+    }
+
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--teal);
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 30px;
+      font-weight: 500;
+      line-height: 1.22;
+      letter-spacing: -0.6px;
+      margin-bottom: 16px;
+    }
+    .body-text {
+      font-size: 15px;
+      color: var(--ink-2);
+      line-height: 1.72;
+      max-width: 380px;
+    }
+    .body-text + .body-text { margin-top: 12px; }
+
+    /* HERO */
+    .hero-label {
+      font-size: 11px;
+      color: var(--ink-3);
+      letter-spacing: 0.05em;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); flex-shrink: 0; }
+    .dot-pulse { animation: pulse 2.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+    h1 {
+      font-size: 44px;
+      font-weight: 500;
+      line-height: 1.12;
+      letter-spacing: -1.2px;
+      margin-bottom: 20px;
+    }
+    h1 em { font-style: normal; color: var(--ink-3); }
+    .lead { font-size: 16px; color: var(--ink-2); line-height: 1.68; max-width: 400px; margin-bottom: 34px; }
+
+    .cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn-p {
+      background: var(--ink); color: var(--cream-0);
+      border: none; padding: 11px 22px; border-radius: var(--radius-sm);
+      font-size: 14px; font-weight: 500; cursor: pointer; font-family: var(--font);
+      transition: background 0.15s;
+    }
+    .btn-p:hover { background: var(--ink-2); }
+    .btn-g {
+      background: transparent; color: var(--ink-2);
+      border: 0.5px solid var(--cream-3); padding: 11px 22px; border-radius: var(--radius-sm);
+      font-size: 14px; cursor: pointer; font-family: var(--font);
+      transition: background 0.15s;
+    }
+    .btn-g:hover { background: var(--cream-1); }
+
+    .dash-list { list-style: none; margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .dash-list li { font-size: 14px; color: var(--ink-2); padding-left: 20px; position: relative; line-height: 1.55; }
+    .dash-list li::before { content: '—'; position: absolute; left: 0; color: var(--ink-3); }
+
+    .principles { display: flex; flex-direction: column; gap: 16px; margin-top: 22px; }
+    .pr-item { display: flex; gap: 14px; }
+    .pr-num { font-size: 11px; color: var(--teal); font-weight: 500; font-family: var(--mono); min-width: 20px; margin-top: 1px; }
+    .pr-body { font-size: 14px; color: var(--ink-2); line-height: 1.55; }
+    .pr-body strong { font-weight: 500; color: var(--ink); display: block; margin-bottom: 2px; }
+
+    /* VIS CARDS */
+    .vis {
+      width: 100%;
+      min-height: min(560px, calc(100vh - 152px));
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border: 1px solid var(--cream-2);
+      border-radius: var(--radius-lg);
+      padding: 36px 40px 40px;
+      box-shadow:
+        0 1px 2px rgba(28, 26, 22, 0.04),
+        0 12px 40px rgba(28, 26, 22, 0.07);
+    }
+    .vis-lbl {
+      font-size: 10px;
+      color: var(--ink-3);
+      letter-spacing: 0.14em;
+      font-weight: 500;
+      margin-bottom: 28px;
+      text-transform: uppercase;
+    }
+    .vis-inner {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .vis-note {
+      font-size: 11px;
+      color: var(--ink-3);
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--cream-2);
+      line-height: 1.5;
+    }
+
+    /* FLOW */
+    .flow { align-items: center; gap: 0; }
+    .svcs { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; }
+    .node {
+      background: var(--cream-1);
+      border: none;
+      border-radius: 8px;
+      padding: 11px 18px;
+      font-size: 13.5px;
+      font-family: var(--mono);
+      color: var(--ink);
+    }
+    .node.core {
+      background: var(--teal-light);
+      color: #085041;
+      font-weight: 500;
+      text-align: center;
+      width: 100%;
+      padding: 20px 24px;
+      font-size: 14px;
+      border-radius: 10px;
+      letter-spacing: -0.2px;
+    }
+    .node.out {
+      font-size: 13px;
+      color: var(--ink-2);
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+      padding: 12px 10px;
+    }
+    .conn {
+      width: 2px;
+      height: 28px;
+      background: var(--cream-3);
+      margin: 4px auto;
+      border-radius: 1px;
+    }
+    .sublbl {
+      font-size: 11px;
+      color: var(--ink-3);
+      letter-spacing: 0.02em;
+      text-align: center;
+      margin: 2px 0;
+    }
+    .outs { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; }
+
+    /* STACK */
+    .stack { display: flex; flex-direction: column; gap: 2px; width: 100%; }
+    .stk-row { display: flex; align-items: stretch; gap: 14px; }
+    .stk-lbl {
+      font-size: 10px;
+      color: var(--ink-3);
+      width: 52px;
+      flex-shrink: 0;
+      font-weight: 500;
+      font-family: var(--mono);
+      display: flex;
+      align-items: center;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .stk-bar {
+      flex: 1;
+      background: var(--cream-1);
+      border: none;
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-size: 14px;
+      color: var(--ink-2);
+      text-align: center;
+      line-height: 1.4;
+    }
+    .stk-bar.hl {
+      background: var(--teal-light);
+      color: #085041;
+      font-weight: 500;
+      padding: 18px 20px;
+    }
+    .stk-arr {
+      text-align: center;
+      font-size: 11px;
+      color: var(--cream-3);
+      margin: 6px 0 6px 66px;
+      letter-spacing: 0.1em;
+    }
+
+    /* SUITE */
+    .suite-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+    .s-item {
+      background: var(--cream-1);
+      border: none;
+      border-radius: 10px;
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 110px;
+    }
+    .s-item.live { background: var(--teal-light); }
+    .s-badge { display: inline-block; font-size: 10px; padding: 3px 9px; border-radius: 10px; margin-bottom: 10px; font-weight: 500; letter-spacing: 0.02em; }
+    .b-live { background: var(--teal); color: #fff; }
+    .b-soon { background: var(--cream-2); color: var(--ink-3); }
+    .s-name { font-size: 15px; font-weight: 500; color: var(--ink); margin-bottom: 5px; letter-spacing: -0.2px; }
+    .s-item.live .s-name { color: #085041; }
+    .s-desc { font-size: 13px; color: var(--ink-3); line-height: 1.45; }
+    .s-item.live .s-desc { color: #0F6E56; }
+
+    /* CODE */
+    .vis .code-wrap {
+      background: var(--cream-1);
+      border: none;
+      border-radius: 10px;
+      overflow: hidden;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .code-hdr {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--cream-2);
+      background: rgba(253, 250, 244, 0.6);
+    }
+    .c-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--cream-3); }
+    .c-fname { font-size: 12px; color: var(--ink-3); font-family: var(--mono); margin-left: 6px; }
+    .code-body {
+      padding: 22px 24px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--ink-2);
+      white-space: pre;
+      overflow-x: auto;
+      flex: 1;
+    }
+    .kw { color: var(--teal); }
+    .str { color: #8B5E3C; }
+    .cm { color: var(--ink-3); }
+    .prop { color: #5E4B8B; }
+
+    /* ROADMAP */
+    .rdmap { display: flex; flex-direction: column; width: 100%; }
+    .rd-item { display: flex; gap: 18px; }
+    .rd-l { display: flex; flex-direction: column; align-items: center; }
+    .rd-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+    .rd-live { background: var(--teal); box-shadow: 0 0 0 3px var(--teal-light); }
+    .rd-des { background: transparent; border: 2px solid var(--ink-3); }
+    .rd-pln { background: transparent; border: 2px solid var(--cream-3); }
+    .rd-line { width: 2px; flex: 1; min-height: 28px; background: var(--cream-2); margin: 6px 0; border-radius: 1px; }
+    .rd-c { padding-bottom: 22px; flex: 1; }
+    .rd-item:last-child .rd-c { padding-bottom: 0; }
+    .rd-q { font-size: 11px; font-weight: 500; margin-bottom: 4px; font-family: var(--mono); letter-spacing: 0.02em; }
+    .rd-q.lv { color: var(--teal); }
+    .rd-q.mt { color: var(--ink-3); }
+    .rd-name { font-size: 15px; font-weight: 500; color: var(--ink); margin-bottom: 4px; letter-spacing: -0.2px; }
+    .rd-det { font-size: 13px; color: var(--ink-3); line-height: 1.45; }
+
+    /* COMPARISON TABLE */
+    .cmp { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .cmp th {
+      text-align: left;
+      font-weight: 500;
+      color: var(--ink-3);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0 12px 14px 0;
+      border-bottom: 1px solid var(--cream-2);
+    }
+    .cmp th:not(:first-child) { text-align: center; padding-left: 12px; }
+    .cmp th:last-child { color: var(--teal); }
+    .cmp td {
+      padding: 14px 12px;
+      color: var(--ink-2);
+      border-bottom: 1px solid var(--cream-2);
+      line-height: 1.4;
+    }
+    .cmp td:first-child { padding-left: 0; font-weight: 500; color: var(--ink); }
+    .cmp td:not(:first-child) { text-align: center; }
+    .cmp tr:last-child td { border-bottom: none; }
+    .cmp td.yes { color: var(--teal); font-weight: 500; font-size: 15px; }
+    .cmp td.no { color: var(--cream-3); }
+
+    /* PROGRESS */
+    .progress-bar {
+      position: fixed; top: 0; left: 0;
+      height: 2px; background: var(--teal);
+      width: 0%; z-index: 300;
+      transition: width 0.08s linear;
+    }
+
+    /* FOOTER */
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 14px 56px;
+      border-top: 1px solid var(--cream-2);
+      background: rgba(253, 250, 244, 0.88);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .ft {
+      font-size: 11px;
+      color: var(--ink-3);
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+    .ft-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      pointer-events: auto;
+    }
+    .ft-links a {
+      font-size: 11px;
+      color: var(--ink-3);
+      text-decoration: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .ft-links a:hover {
+      color: var(--ink);
+      background: var(--cream-1);
+    }
+    .ft-sep {
+      color: var(--cream-3);
+      font-size: 10px;
+      user-select: none;
+    }
+    .ft-hint {
+      font-size: 11px;
+      color: var(--ink-3);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* SECTION DOTS NAV */
+    .dots-nav {
+      position: fixed; right: 20px; top: 50%; transform: translateY(-50%);
+      display: flex; flex-direction: column; gap: 8px; z-index: 200;
+    }
+    .d-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--cream-3); border: none; cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+      padding: 0;
+    }
+    .d-dot.active { background: var(--teal); transform: scale(1.4); }
+  </style>
+</head>
+<body>
+
+<div class="progress-bar" id="progress"></div>
+
+<nav>
+  <div class="nav-logo">orq<span>·</span>estra</div>
+  <div class="nav-right">
+    <div class="nav-tag">1 product live &nbsp;·&nbsp; v0.1</div>
+  </div>
+</nav>
+
+<div class="layout">
+  <!-- LEFT PANEL -->
+  <div class="panel" id="panel-left">
+    <div class="strip" id="strip-left">
+
+      <div class="sec" style="padding-left:56px;">
+        <div class="hero-label"><span class="dot dot-pulse"></span>Event orchestration infrastructure</div>
+        <h1>Orchestrate your platform.<br><em>Not just your services.</em></h1>
+        <p class="lead">A modular infrastructure suite for event-driven, multi-tenant systems. Built for platform teams that need reliability, control, and scale.</p>
+        <div class="cta-row">
+          <button class="btn-p">Go to Notifications →</button>
+          <button class="btn-g">View docs</button>
+        </div>
+      </div>
+
+      <div class="sec" style="padding-left:56px;">
+        <div class="eyebrow">The problem</div>
+        <h2>Modern systems are fragmented.</h2>
+        <p class="body-text">As platforms grow, the boundaries between business logic and infrastructure blur. Teams ship faster, but the system gets harder to reason about.</p>
+        <ul class="dash-list">
+          <li>Notification and webhook code copy-pasted across every service</li>
+          <li>Business logic married to delivery channels — changing one breaks the other</li>
+          <li>No single place to trace what was sent, why, or whether it was delivered</li>
+          <li>Quotas and per-tenant config that scale exponentially with each service</li>
+        </ul>
+      </div>
+
+      <div class="sec" style="padding-left:56px;">
+        <div class="eyebrow">The approach</div>
+        <h2>One orchestration layer. Multiple capabilities.</h2>
+        <p class="body-text">Orqestra sits between your services and your infrastructure, transforming events into coordinated system behavior.</p>
+        <p class="body-text">Not a collection of tools — a unified layer where multiple system capabilities are coordinated through events. Decoupled by design, multi-tenant by default.</p>
+      </div>
+
+      <div class="sec" style="padding-left:56px;">
+        <div class="eyebrow">The suite</div>
+        <h2>Built independently. Designed to work together.</h2>
+        <p class="body-text">Each product stands on its own. Together, they form a coherent platform plane.</p>
+        <p class="body-text">Point solutions solve one channel of pain. Orqestra solves the orchestration problem underneath — so the next capability is a config, not a rewrite.</p>
+      </div>
+
+      <div class="sec" style="padding-left:56px;">
+        <div class="eyebrow">Available now</div>
+        <h2>Orqestra Notifications.</h2>
+        <p class="body-text">A multi-tenant, event-driven notification engine with reliable delivery, intelligent routing, and full observability.</p>
+        <ul class="dash-list" style="margin-top:18px;">
+          <li>Kafka-backed event pipeline</li>
+          <li>Multi-channel — Email, SMS, Push, WebSocket, Webhook</li>
+          <li>DLQ + retry handling with idempotency</li>
+          <li>Template management via MJML</li>
+          <li>Provider fallback system</li>
+        </ul>
+      </div>
+
+      <div class="sec" style="padding-left:56px;">
+        <div class="eyebrow">Why Orqestra</div>
+        <h2>Platform-level thinking.</h2>
+        <p class="body-text">Built for teams that treat infrastructure as a product.</p>
+        <div class="principles">
+          <div class="pr-item"><div class="pr-num">01</div><div class="pr-body"><strong>Event-first design</strong>Everything modeled as an event. State is a projection, not a starting point.</div></div>
+          <div class="pr-item"><div class="pr-num">02</div><div class="pr-body"><strong>Strict tenant isolation</strong>Quotas, secrets, and routing bound to tenants — never leaked across boundaries.</div></div>
+          <div class="pr-item"><div class="pr-num">03</div><div class="pr-body"><strong>Infrastructure-level reliability</strong>DLQs, retries, idempotency, and provider fallbacks are defaults, not features.</div></div>
+          <div class="pr-item"><div class="pr-num">04</div><div class="pr-body"><strong>Decoupled boundaries</strong>Producers don't know about consumers. Services stay small and independently deployable.</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel" id="panel-right">
+    <div class="strip" id="strip-right">
+
+      <!-- R5 paired with L5: comparison table (strip reversed for opposite scroll) -->
+      <div class="sec-r">
+        <div class="vis">
+          <div class="vis-lbl">Orqestra vs. point solutions</div>
+          <div class="vis-inner">
+            <table class="cmp">
+            <thead>
+              <tr>
+                <th>Capability</th>
+                <th>Point solution</th>
+                <th>Orqestra</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Multi-channel delivery</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+              <tr><td>Event-driven core</td><td class="no">—</td><td class="yes">✓</td></tr>
+              <tr><td>Multi-tenant isolation</td><td class="no">—</td><td class="yes">✓</td></tr>
+              <tr><td>Cross-capability orchestration</td><td class="no">—</td><td class="yes">✓</td></tr>
+              <tr><td>Unified policy plane</td><td class="no">—</td><td class="yes">✓</td></tr>
+              <tr><td>Pluggable capabilities</td><td class="no">—</td><td class="yes">✓</td></tr>
+            </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- R4 paired with L4: roadmap -->
+      <div class="sec-r">
+        <div class="vis">
+          <div class="vis-lbl">Roadmap</div>
+          <div class="vis-inner">
+            <div class="rdmap">
+            <div class="rd-item"><div class="rd-l"><div class="rd-dot rd-live"></div><div class="rd-line"></div></div><div class="rd-c"><div class="rd-q lv">Q2 · 2026</div><div class="rd-name">Notifications</div><div class="rd-det">Email · SMS · Push · Webhook · MJML · Provider fallback</div></div></div>
+            <div class="rd-item"><div class="rd-l"><div class="rd-dot rd-des"></div><div class="rd-line"></div></div><div class="rd-c"><div class="rd-q mt">Q4 · 2026</div><div class="rd-name">Search</div><div class="rd-det">Auto-indexed from events · Tenant-scoped queries</div></div></div>
+            <div class="rd-item"><div class="rd-l"><div class="rd-dot rd-pln"></div><div class="rd-line"></div></div><div class="rd-c"><div class="rd-q mt">Q1 · 2027</div><div class="rd-name">Auth</div><div class="rd-det">Per-tenant identity · Policy as events · SSO</div></div></div>
+            <div class="rd-item"><div class="rd-l"><div class="rd-dot rd-pln"></div></div><div class="rd-c"><div class="rd-q mt">Q2 · 2027</div><div class="rd-name">Analytics</div><div class="rd-det">Event-stream metrics · Per-tenant dashboards</div></div></div>
+            </div>
+            <p class="vis-note">Roadmap is directional. Priorities adjust based on feedback.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- R3 paired with L3: suite grid -->
+      <div class="sec-r">
+        <div class="vis">
+          <div class="vis-lbl">The suite</div>
+          <div class="vis-inner">
+            <div class="suite-grid">
+            <div class="s-item live"><div class="s-badge b-live">Live now</div><div class="s-name">Notifications</div><div class="s-desc">Multi-channel, multi-tenant delivery with retries and DLQs</div></div>
+            <div class="s-item"><div class="s-badge b-soon">Q4 2026</div><div class="s-name">Search</div><div class="s-desc">Event-driven indexing and retrieval — no separate ETL</div></div>
+            <div class="s-item"><div class="s-badge b-soon">Q1 2027</div><div class="s-name">Auth</div><div class="s-desc">Tenant-aware identity built into the event plane</div></div>
+            <div class="s-item"><div class="s-badge b-soon">Q2 2027</div><div class="s-name">Analytics</div><div class="s-desc">Real-time insights from your event streams</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- R2 paired with L2: code snippet -->
+      <div class="sec-r">
+        <div class="vis">
+          <div class="vis-lbl">Emit an event — Orqestra handles the rest</div>
+          <div class="vis-inner">
+            <div class="code-wrap">
+            <div class="code-hdr">
+              <div class="c-dot"></div><div class="c-dot"></div><div class="c-dot"></div>
+              <span class="c-fname">emit.ts</span>
+            </div>
+            <div class="code-body"><span class="cm">// POST /v1/events</span>
+<span class="kw">await</span> orqestra.events.<span class="kw">emit</span>({
+  <span class="prop">tenant</span>: <span class="str">"acme"</span>,
+  <span class="prop">type</span>:   <span class="str">"invoice.paid"</span>,
+  <span class="prop">data</span>: { <span class="prop">invoice_id</span>: <span class="str">"in_4f2"</span>, <span class="prop">amount</span>: 12_900 },
+  <span class="prop">policy</span>: {
+    <span class="prop">channels</span>: [<span class="str">"email"</span>, <span class="str">"webhook"</span>],
+    <span class="prop">retry</span>: { <span class="prop">max</span>: 5, <span class="prop">backoff</span>: <span class="str">"exp"</span> },
+  },
+});
+<span class="cm">// → 202 accepted · evt_01J...</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- R1 paired with L1: stack position -->
+      <div class="sec-r">
+        <div class="vis">
+          <div class="vis-lbl">Where it sits in your stack</div>
+          <div class="vis-inner">
+            <div class="stack">
+            <div class="stk-row"><div class="stk-lbl">layer 0</div><div class="stk-bar">Frontend · Mobile · Internal tools</div></div>
+            <div class="stk-arr">↓</div>
+            <div class="stk-row"><div class="stk-lbl">layer 1</div><div class="stk-bar">Your microservices · Domain APIs</div></div>
+            <div class="stk-arr">↓</div>
+            <div class="stk-row"><div class="stk-lbl">layer 2</div><div class="stk-bar hl">Orqestra Suite</div></div>
+            <div class="stk-arr">↓</div>
+            <div class="stk-row"><div class="stk-lbl">layer 3</div><div class="stk-bar">Kafka · SES · Twilio · Firebase</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- R0 paired with L0: architecture diagram -->
+      <div class="sec-r">
+        <div class="vis">
+          <div class="vis-lbl">Architecture</div>
+          <div class="vis-inner flow">
+            <div class="svcs">
+              <div class="node">billing.svc</div>
+              <div class="node">users.svc</div>
+              <div class="node">orders.svc</div>
+              <div class="node">audit.svc</div>
+            </div>
+            <div class="conn"></div>
+            <div class="sublbl">events → Kafka / streams</div>
+            <div class="conn"></div>
+            <div class="node core">orqestra · routing · policy · delivery</div>
+            <div class="conn"></div>
+            <div class="outs">
+              <div class="node out">email</div>
+              <div class="node out">sms</div>
+              <div class="node out">push</div>
+              <div class="node out">websocket</div>
+              <div class="node out">webhook</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Section dots -->
+<div class="dots-nav" id="dots-nav"></div>
+
+<footer>
+  <div class="ft">© 2026 orqestra</div>
+  <nav class="ft-links" aria-label="Footer">
+    <a href="#">Docs</a>
+    <span class="ft-sep">·</span>
+    <a href="https://docs.notifications.orqestra.co.ke" target="_blank" rel="noopener noreferrer">Notifications</a>
+    <span class="ft-sep">·</span>
+    <a href="#">GitHub</a>
+  </nav>
+  <div class="ft-hint" id="hint">scroll to explore ↓</div>
+</footer>
+
+<script>
+  const SECTIONS = 6;
+  const stripL = document.getElementById('strip-left');
+  const stripR = document.getElementById('strip-right');
+  const progress = document.getElementById('progress');
+  const hint = document.getElementById('hint');
+  const dotsNav = document.getElementById('dots-nav');
+
+  let targetSection = 0;
+  let currentOffset = 0;
+  let rafId = null;
+  let scrollLocked = false;
+  let wheelAccum = 0;
+  let wheelResetTimer = null;
+
+  const WHEEL_THRESHOLD = 40;
+  const SWIPE_THRESHOLD = 50;
+
+  // Build dots
+  const dots = [];
+  for (let i = 0; i < SECTIONS; i++) {
+    const d = document.createElement('button');
+    d.className = 'd-dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => goToSection(i));
+    dotsNav.appendChild(d);
+    dots.push(d);
+  }
+
+  function sectionToOffset(section) {
+    return section / (SECTIONS - 1);
+  }
+
+  function applyOffset(offset) {
+    const vh = window.innerHeight;
+    const totalTravel = vh * (SECTIONS - 1);
+
+    // Left scrolls down; right scrolls up (opposite). Right strip is DOM-reversed
+    // so L0+R0, L1+R1, … still align at each snap point.
+    stripL.style.transform = `translateY(${-(offset * totalTravel)}px)`;
+    stripR.style.transform = `translateY(${-((1 - offset) * totalTravel)}px)`;
+
+    progress.style.width = (offset * 100) + '%';
+
+    dots.forEach((d, i) => d.classList.toggle('active', i === targetSection));
+
+    hint.textContent = targetSection === 0
+      ? 'scroll to explore ↓'
+      : targetSection === SECTIONS - 1
+        ? '↑ scroll back up'
+        : `${targetSection + 1} / ${SECTIONS}`;
+  }
+
+  function animate() {
+    const targetOffset = sectionToOffset(targetSection);
+    const diff = targetOffset - currentOffset;
+
+    if (Math.abs(diff) < 0.001) {
+      currentOffset = targetOffset;
+      applyOffset(currentOffset);
+      rafId = null;
+      scrollLocked = false;
+      return;
+    }
+
+    currentOffset += diff * 0.14;
+    applyOffset(currentOffset);
+    rafId = requestAnimationFrame(animate);
+  }
+
+  function goToSection(idx) {
+    const next = Math.max(0, Math.min(SECTIONS - 1, idx));
+    if (next === targetSection && !rafId) return;
+
+    targetSection = next;
+    scrollLocked = true;
+    if (!rafId) rafId = requestAnimationFrame(animate);
+  }
+
+  function snapByDirection(direction) {
+    if (scrollLocked) return;
+    goToSection(targetSection + direction);
+  }
+
+  // Wheel — accumulate delta, then snap one section at a time
+  window.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (scrollLocked) return;
+
+    wheelAccum += e.deltaY;
+    clearTimeout(wheelResetTimer);
+    wheelResetTimer = setTimeout(() => { wheelAccum = 0; }, 120);
+
+    if (Math.abs(wheelAccum) < WHEEL_THRESHOLD) return;
+
+    const direction = wheelAccum > 0 ? 1 : -1;
+    wheelAccum = 0;
+    snapByDirection(direction);
+  }, { passive: false });
+
+  // Touch — snap on swipe end
+  let touchStartY = 0;
+  let touchLastY = 0;
+
+  window.addEventListener('touchstart', (e) => {
+    touchStartY = e.touches[0].clientY;
+    touchLastY = touchStartY;
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    touchLastY = e.touches[0].clientY;
+  }, { passive: false });
+
+  window.addEventListener('touchend', () => {
+    const dy = touchStartY - touchLastY;
+    if (Math.abs(dy) < SWIPE_THRESHOLD) return;
+    snapByDirection(dy > 0 ? 1 : -1);
+  }, { passive: true });
+
+  // Keys
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+      e.preventDefault();
+      snapByDirection(1);
+    }
+    if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+      e.preventDefault();
+      snapByDirection(-1);
+    }
+  });
+
+  applyOffset(0);
+</script>
+</body>
+</html>
